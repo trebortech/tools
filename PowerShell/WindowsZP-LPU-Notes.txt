@@ -1,0 +1,64 @@
+
+Document has note saying you MUST user administrator account for WinRS to work. :-(
+
+http://technet.microsoft.com/en-us/library/dd163506.aspx
+
+
+
+zenoss.winrm.OperatingSystem
+-- Access Denied
+-----> Powershell for exchange is causing error. Not sure why this is in the operating system module anyway
+---FIX: Updated RootSDDL for winrm/config/service
+
+
+device_om.snmpSysName = computerSystem.Name
+AttributeError: 'NoneType' object has no attribute 'Name'
+
+
+
+zenoss.winrm.CPUs
+all good
+
+
+
+zenoss.winrm.FileSystems
+all good
+
+
+zenoss.winrm.Interfaces
+-- Access Denied
+Not Working 
+--> Powershell commands for TeamNIC
+--> Might also need to set registry keys for team nics
+
+Working
+--> Win32_NetworkAdapter
+- Fixed by adding permissions to all WMI NameSpaces (need to find which namespace fixed it)
+
+
+zenoss.winrm.Services
+http://community.zenoss.org/thread/12048
+* NOTE: Looks like teh SCMANAGER perms are for a small set of services
+* Might have to set SDDL on all services just to confirm collection.
+
+Input into ps script
+- First grab current sddl for SCMANAGER
+sc sdshow SCMANAGER
+
+- Get User SID
+$objUser = New-Object System.Security.Principal.NTAccount('Solutions\zenny')
+$objSID = $objUser.Translate([System.Security.Principal.SecurityIdentifier])
+$strSID = $objSID.Value
+
+
+
+zenoss.winrm.Processes
+list index out of range
+
+
+zenoss.winrm.Software
+all good
+
+
+zenoss.winrm.IIS
+no results
