@@ -1,6 +1,13 @@
 #
 # Copyright 2014 Zenoss Inc., All rights reserved
 #
+# DISCLAIMER: USE THE SOFTWARE AT YOUR OWN RISK
+#
+# This script modifies the registry and several system access permissions. Use with caution!
+#
+# To make sure you understand this you'll need to uncomment out the section at the bottom of the script before you can use it.
+
+
 
 
 <#
@@ -44,6 +51,9 @@ param(
 #$username = 'zenny'					# Username alone
 #$domaintype = 'domain'		# local or domain
 
+#$username = 'benny'
+#$domaintype = 'local'
+
 # The following values will be set at runtime. They are place holders here.
 $usersid
 
@@ -57,8 +67,9 @@ $objSDHelper = New-Object System.Management.ManagementClass Win32_SecurityDescri
 
 # Set account information
 if($domaintype.ToLower() -ne 'local'){
-	$domain = $env:USERDNSDOMAIN
-	$userfqdn = "{0}@{1}" -f $username, $domain 
+	$domain = $env:USERDOMAIN
+	$dnsdomain = $env:USERDNSDOMAIN
+	$userfqdn = "{0}@{1}" -f $username, $dnsdomain 
 }
 else {
 	$domain = $env:USERDOMAIN
@@ -75,15 +86,59 @@ function get_user_sid($getuser=$userfqdn) {
 	$objUser = New-Object System.Security.Principal.NTAccount($getuser)
 	$objSID = $objUser.Translate([System.Security.Principal.SecurityIdentifier])
 	return $objSID.Value
+
+	trap{
+		write-host "User does not exists: $getuser"
+		continue
+	}
+}
+
+function add_user_to_group($groupname) {
+	$objADSI = [ADSI]"WinNT://localhost/$groupname,group"
+	$objADSIUser = [ADSI]"WinNT://$domain/$username"
+	$objMembers = @($objADSI.psbase.Invoke("Members"))
+	if($objMembers.Count -gt 0){
+		foreach ($objMember in $objMembers){
+			$membername = $objMember.GetType().InvokeMember("Name", 'GetProperty', $null, $objMember, $null)
+			if ($membername -ne $username){
+				$objADSI.psbase.Invoke("Add",$objADSIUser.psbase.path)
+			}
+		}
+	}
+	else {
+		$objADSI.psbase.Invoke("Add",$objADSIUser.psbase.path)
+	}
+
+	trap{
+	 	write-host "Group does not exists: $groupname"
+	 	continue
+ 	}
+}
+
+function add_user_to_service($service, $accessMask){
+	$servicesddlstart = CMD /C "sc sdshow $service"
+	if($servicesddlstart.contains($usersid) -eq $False){
+		$servicesddlnew = update_sddl $servicesddlstart $usersid $accessMask
+		CMD /C "sc sdset $service $servicesddlnew"
+	}
+	else{
+		write-output "Service already contains permission for user $userfqdn"
+	}
 }
 
 function set_registry_security($regkey, $userfqdn, $accessmap){
 	#accessmap = "ReadPermissions, ReadKey, EnumerateSubKeys, QueryValues"
-	$regacl = Get-Acl $regkey
-	$rule = New-Object System.Security.AccessControl.RegistryAccessRule($userfqdn,$accessmap, "Allow")
-	$regacl.SetAccessRule($rule)
-	$regacl | set-acl -path $regkey
+	if(Test-Path $regkey){
+		$regacl = Get-Acl $regkey
+		$rule = New-Object System.Security.AccessControl.RegistryAccessRule($userfqdn,$accessmap,"ContainerInherit", "InheritOnly", "Allow")
+		$regacl.SetAccessRule($rule)
+		$regacl | set-acl -path $regkey
+	}
 
+	trap{
+		write-host "Registry key does not exists: $regkey"
+		continue
+	}
 }
 
 function set_registry_sd_value($regkey, $property, $usersid, $accessMask){
@@ -97,6 +152,10 @@ function set_registry_sd_value($regkey, $property, $usersid, $accessMask){
 	else{
 		write-output "Value already contains permission for user $userfqdn"
 	}
+
+	trap{
+		write-host "Registry Security Descriptor failed for $regkey"
+	}
 }
 
 function allow_access_to_winrm($usersid) {
@@ -105,6 +164,7 @@ function allow_access_to_winrm($usersid) {
 	} 
 	else {
 		throw "Error getting WinRM SDDL"
+		break
 	}
 	if ($sddlstart.contains($usersid) -eq $False){
 		$permissions = @("genericexecute","genericread")
@@ -114,6 +174,10 @@ function allow_access_to_winrm($usersid) {
 	}
 	else {
 		write-output "User already has permissions set"
+	}
+
+	trap{
+		write-host "Problem setting RootSDDL permissions"
 	}
 }
 
@@ -147,7 +211,11 @@ function get_accessmask($permissions){
 		"keyexecute"			= 0x20019;
 		"keyenumeratesubkeys"	= 0x0004;
 		"keyqueryvalue"			= 0x0001;
-		"keysetvalue"			= 0x0002
+		"keysetvalue"			= 0x0002;
+		"servicequeryconfig"	= 0x0001;
+		"servicequeryservice"	= 0x0004;
+		"servicestart"			= 0x0010;
+		"servicestop"			= 0x0020
 	}
 
 	$accessMask = 0
@@ -199,14 +267,26 @@ function add_ace_to_namespace($accessMask, $namespace){
 #  ------------------------------------
 ########################################
 
-
+<# Remove this line along with the last line of this file. #>
 # Initialize user information
 $usersid = get_user_sid
 
 ##############################
 # Configure Namespace Security
 ##############################
-$namespaces = @("Root", "Root/CIMv2", "Root/DEFAULT", "Root/RSOP", "Root/WMI")
+<#
+Root/CIMv2/Security/MicrosoftTpm  -->  OperatingSystem modeler - Win32_OperatingSystem
+Root/RSOP/Computer  -->  OperatingSystem modeler - Win32_ComputerSystem
+#>
+$namespaces = @(
+	"Root", 
+	"Root/CIMv2", 
+	"Root/DEFAULT", 
+	"Root/RSOP", 
+	"Root/RSOP/Computer",
+	"Root/WMI", 
+	"Root/CIMv2/Security/MicrosoftTpm"
+	)
 $namespaceaccessmap = get_accessmask @("Enable","MethodExecute","ReadSecurity","RemoteAccess")
 foreach ($namespace in $namespaces) {
 	$namespaceParams = @{Namespace=$namespace;Path="__systemsecurity=@"}
@@ -223,7 +303,9 @@ allow_access_to_winrm $usersid
 ##############################
 $registrykeys = @(
 	"HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Perflib",
-	"HKLM:\system\currentcontrolset\control\securepipeservers\winreg"
+	"HKLM:\system\currentcontrolset\control\securepipeservers\winreg",
+	"HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4D36E972-E325-11CE-BFC1-08002bE10318}",
+	"HKLM:\SYSTEM\CurrentControlSet\Services\Blfp\Parameters\Adapters"
 	)
 # NOTE: Registry keys security values are handled differently with set-acl
 # We do not have to convert
@@ -244,3 +326,34 @@ $registrykeyvalueaccessmap = get_accessmask @("listcontents", "readallprop")
 foreach ($registryvaluekey in $registryvaluekeys.GetEnumerator()){
 	set_registry_sd_value $registryvaluekey.Value $registryvaluekey.Name $usersid $registrykeyvalueaccessmap
 }
+
+##############################
+# Update local group permissions
+##############################
+$localgroups = @(
+	"Performance Monitor Users",
+	"Performance Log Users", 
+	"Event Log Readers", 
+	"Distributed COM Users", 
+	"WinRMRemoteWMIUsers__")
+
+foreach ($localgroup in $localgroups) {
+	add_user_to_group $localgroup
+}
+
+##############################
+# Modify DCOM Settings
+##############################
+
+##############################
+# Update Services Permissions
+##############################
+
+$services = get-wmiobject -query "Select * from Win32_Service"
+$serviceaccessmap = get_accessmask @("servicequeryconfig","servicequeryservice")
+add_user_to_service 'SCMANAGER' $serviceaccessmap
+foreach ($service in $services){
+	add_user_to_service $service.name $serviceaccessmap
+}
+
+<# Remove this line and the line just after the Execution Center section title to enable script. #> 
