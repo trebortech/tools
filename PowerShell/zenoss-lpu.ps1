@@ -116,7 +116,7 @@ function add_user_to_group($groupname) {
 }
 
 function add_user_to_service($service, $accessMask){
-	$servicesddlstart = CMD /C "sc sdshow $service"
+	$servicesddlstart = [string](CMD /C "sc sdshow $service")
 	if($servicesddlstart.contains($usersid) -eq $False){
 		$servicesddlnew = update_sddl $servicesddlstart $usersid $accessMask
 		CMD /C "sc sdset $service $servicesddlnew"
@@ -157,7 +157,7 @@ function set_registry_security($regkey, $userfqdn, $accessmap){
 
 function set_registry_sd_value($regkey, $property, $usersid, $accessMask){
 	$objRegProperty = Get-ItemProperty $regkey -Name $property
-	$sddlstart = ($objSDHelper.BinarySDToSDDL($objRegProperty.$property)).SDDL
+	$sddlstart = [string]($objSDHelper.BinarySDToSDDL($objRegProperty.$property)).SDDL
 	if($sddlstart.contains($usersid) -eq $False){
 		$newsddl = update_sddl $sddlstart $usersid $accessMask
 		$binarySDDL = $objSDHelper.SDDLToBinarySD($newsddl)
@@ -174,7 +174,7 @@ function set_registry_sd_value($regkey, $property, $usersid, $accessMask){
 
 function allow_access_to_winrm($usersid) {
 	if($usersid.Length -gt 5) {
-		$sddlstart = (Get-Item WSMan:\localhost\Service\RootSDDL).Value
+		$sddlstart = [string](Get-Item WSMan:\localhost\Service\RootSDDL).Value
 	} 
 	else {
 		throw "Error getting WinRM SDDL"
