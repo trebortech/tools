@@ -126,10 +126,24 @@ function add_user_to_service($service, $accessMask){
 	}
 }
 
+function update_folderfile($folderfile, $accessMask){
+	if(Test-Path $folderfile){
+		$folderfileacl = (get-item $folderfile).getaccesscontrol("Access")
+		$rule = New-Object System.Security.AccessControl.FileSystemAccessRule($userfqdn, $accessMask, "ContainerInherit, ObjectInherit", "None", "Allow")
+		$folderfileacl.AddAccessRule($rule)
+		set-acl -path $folderfile -aclobject $folderfileacl
+	}
+
+	trap{
+		write-host "Folder / File path does not exists: $folderfile"
+		continue
+	}
+}
+
 function set_registry_security($regkey, $userfqdn, $accessmap){
 	#accessmap = "ReadPermissions, ReadKey, EnumerateSubKeys, QueryValues"
 	if(Test-Path $regkey){
-		$regacl = Get-Acl $regkey
+		$regacl = (get-item $regkey).getaccesscontrol("Access")
 		$rule = New-Object System.Security.AccessControl.RegistryAccessRule($userfqdn,$accessmap,"ContainerInherit", "InheritOnly", "Allow")
 		$regacl.SetAccessRule($rule)
 		$regacl | set-acl -path $regkey
@@ -170,7 +184,7 @@ function allow_access_to_winrm($usersid) {
 		$permissions = @("genericexecute","genericread")
 		$accessMask = get_accessmask $permissions
 		$newsddl = update_sddl $sddlstart $usersid $accessMask
-		Set-Item WSMan:\localhost\Service\RootSDDL -value $newsddl
+		Set-Item WSMan:\localhost\Service\RootSDDL -value $newsddl -Force
 	}
 	else {
 		write-output "User already has permissions set"
@@ -200,8 +214,12 @@ function get_accessmask($permissions){
 		"providerwrite"			= 0x10;
 		"remoteaccess"			= 0x20;
 		"readsecurity"			= 0x20000;
+		"readfolder"			= 0x20089;
+		"deleteperm"			= 0x10000;
 		"writesecurity"			= 0x40000;
+		"genericall"			= 0x10000000;
 		"genericexecute"		= 0x20000000;
+		"genericwrite"			= 0x40000000;
 		"genericread"			= 0x80000000;
 		"listcontents"			= 0x00000004;
 		"readallprop"			= 0x00000010;
@@ -274,10 +292,9 @@ $usersid = get_user_sid
 ##############################
 # Configure Namespace Security
 ##############################
-<#
-Root/CIMv2/Security/MicrosoftTpm  -->  OperatingSystem modeler - Win32_OperatingSystem
-Root/RSOP/Computer  -->  OperatingSystem modeler - Win32_ComputerSystem
-#>
+# Root/CIMv2/Security/MicrosoftTpm  -->  OperatingSystem modeler - Win32_OperatingSystem
+# Root/RSOP/Computer  -->  OperatingSystem modeler - Win32_ComputerSystem
+
 $namespaces = @(
 	"Root", 
 	"Root/CIMv2", 
@@ -335,25 +352,37 @@ $localgroups = @(
 	"Performance Log Users", 
 	"Event Log Readers", 
 	"Distributed COM Users", 
-	"WinRMRemoteWMIUsers__")
+	"WinRMRemoteWMIUsers__"
+	)
 
 foreach ($localgroup in $localgroups) {
 	add_user_to_group $localgroup
 }
 
 ##############################
-# Modify DCOM Settings
+# Modify Folder/File permissions
 ##############################
+
+$folderfiles = @(
+	"C:\Windows\system32\inetsrv\config"
+	)
+$folderfileaccessmap = get_accessmask @(
+	"readfolder"
+	)
+
+foreach($folderfile in $folderfiles){
+	update_folderfile $folderfile $folderfileaccessmap
+}
+
 
 ##############################
 # Update Services Permissions
 ##############################
 
 $services = get-wmiobject -query "Select * from Win32_Service"
-$serviceaccessmap = get_accessmask @("servicequeryconfig","servicequeryservice")
+$serviceaccessmap = get_accessmask @("servicequeryconfig","servicequeryservice","readallprop","readsecurity")
 add_user_to_service 'SCMANAGER' $serviceaccessmap
 foreach ($service in $services){
 	add_user_to_service $service.name $serviceaccessmap
 }
-
 <# Remove this line and the line just after the Execution Center section title to enable script. #> 

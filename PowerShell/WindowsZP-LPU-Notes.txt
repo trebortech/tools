@@ -5,6 +5,10 @@ http://technet.microsoft.com/en-us/library/dd163506.aspx
 
 
 
+ACCESS MAPS
+
+http://msdn.microsoft.com/en-us/library/cc245498.aspx
+
 zenoss.winrm.OperatingSystem
 -- Access Denied
 -----> Powershell for exchange is causing error. Not sure why this is in the operating system module anyway
@@ -45,10 +49,14 @@ Input into ps script
 - First grab current sddl for SCMANAGER
 sc sdshow SCMANAGER
 
-- Get User SID
-$objUser = New-Object System.Security.Principal.NTAccount('Solutions\zenny')
-$objSID = $objUser.Translate([System.Security.Principal.SecurityIdentifier])
-$strSID = $objSID.Value
+NOTE:
+These services could not have perms updated
+WdiSystemHost
+WdiServiceHost
+idsvc
+gpsvc
+EFS
+DPS
 
 
 
@@ -62,3 +70,4 @@ all good
 
 zenoss.winrm.IIS
 no results
+
