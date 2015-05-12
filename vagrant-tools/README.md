@@ -17,9 +17,9 @@ example:
 newMinion.sh -m MyMinionName -M saltme.trebortech.com -g v2015.5.0
 ```
 
--m|--minionid  ---->  The minion id you would like to assign to this instance. Default: nominionid
--M|--masterurl ---->  The URL to your salt master. Default: master.salt.trebortech.ninja
--g|--git       ---->  The version from salt that you would like to install. Default: v2015.2.0rc2
+-m|--minionid  ---->  The minion id you would like to assign to this instance. Default: nominionid <br>
+-M|--masterurl ---->  The URL to your salt master. Default: master.salt.trebortech.ninja <br>
+-g|--git       ---->  The version from salt that you would like to install. Default: v2015.2.0rc2<br> 
 
 **Vagrantfile**  -> This is the base vagrantfile that is used to deploy out the vagrant box.
 
