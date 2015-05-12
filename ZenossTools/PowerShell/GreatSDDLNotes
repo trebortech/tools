@@ -1,0 +1,81 @@
+http://www.netid.washington.edu/documentation/domains/sddl.aspx
+
+http://networkadminkb.com/KB/a6/understanding-the-sddl-permissions-in-the-ace-string.aspx
+
+objAccessRights.Add 2032127, "FullControl"
+objAccessRights.Add 1048576, "Synchronize"
+objAccessRights.Add 524288,  "TakeOwnership"
+objAccessRights.Add 262144,  "ChangePermissions"
+objAccessRights.Add 197055,  "Modify"
+objAccessRights.Add 131241,  "ReadAndExecute
+objAccessRights.Add 131209,  "Read"
+objAccessRights.Add 131072,  "ReadPermissions"
+objAccessRights.Add 65536,   "Delete"
+objAccessRights.Add 278,     "Write"
+objAccessRights.Add 256,     "WriteAttributes"
+objAccessRights.Add 128,     "ReadAttributes"
+objAccessRights.Add 64,      "DeleteSubdirectoriesAndFiles"
+objAccessRights.Add 32,      "ExecuteFile"
+objAccessRights.Add 16,      "WriteExtendedAttributes"
+objAccessRights.Add 8,       "ReadExtendedAttributes"
+objAccessRights.Add 4,       "AppendData"
+objAccessRights.Add 2,       "CreateFiles"
+objAccessRights.Add 1,       "ReadData"
+
+Owner SID = O:NS
+Group SID = G:BA
+DACL FLAG = D:P
+    (A;;GA;;;BA)
+    (A;;GR;;;IU)
+    (A;;GXGR;;;S-1-5-21-336073942-1345109847-2066479376-1163)
+SACL FLAG = S:P
+    (AU;FA;GA;;;WD)
+    (AU;SA;GXGW;;;WD)
+
+6 Blocks
+
+
+ACE TYPE  (allow / deny / audit)
+ACE Flags (inheritance / audit)
+Permissions
+Object Type (GUID)
+Inherited Object (GUID)
+Trustee (SID)
+
+
+GX = Generic Execute  =  0x20000000
+GR = Generic Read     = 0x80000000
+
+
+A;CIIO;GR;;;$sid
+
+GA = Generic All (Full Control)
+GR = Generic Read
+GW = Generic Write
+GX = Generic Execute
+
+
+BA = BUILTIN\Administrators
+WD = Everyone
+ER = BUILTIN\Event Log Readers
+IU = NT AUTHORITY\Interactive
+RM = BUILTIN\Remote Management Users
+
+CC  <-- Create Child
+LC  <-- List Children
+SW  <-- Self Write
+RP  <-- Read Property
+WP  <-- Write Property
+DT  <-- Delete Tree
+LO  <-- List Object
+CR  <-- Control Access
+RC  <-- Read Control
+
+
+O:BA
+G:BA
+D:
+    (A;;CCDCLC;;;WD)
+    (A;;CCDCLC;;;AN)
+    (A;;CCDCLC;;;S-1-5-32-562)
+    (A;;CCDCLC;;;LU)

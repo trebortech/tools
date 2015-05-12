@@ -1,0 +1,12 @@
+
+(A;;
+CC  <-- Create Child
+LC  <-- List Children
+SW  <-- Self Write
+RP  <-- Read Property
+WP  <-- Write Property
+DT  <-- Delete Tree
+LO  <-- List Object
+CR  <-- Control Access
+RC  <-- Read Control
+;;;<USERSID>)
